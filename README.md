@@ -141,6 +141,7 @@ hass-vibe-addon/
 - **Browser sign-in link does not work** — expected inside a container; use the API-key option in `vibe --setup` or the add-on option instead.
 - **`ha` command not found** — the HA CLI is only published for amd64 and aarch64; on other architectures it is unavailable.
 - **MCP not working** — check the add-on logs at start; the MCP server is registered in `~/.vibe/config.toml`. You can verify with `cat ~/.vibe/config.toml`.
+- **`vibe` crashes with a TOML error** — the add-on keeps a backup of the last valid config at `~/.vibe/config.toml.bak` and restores it automatically at startup. If a corrupt file was quarantined, it is kept at `~/.vibe/config.toml.corrupt` for manual inspection.
 - **Add-on logs** — Settings → Add-ons → Vibe Code → Log, or `ha-logs` inside the terminal for HA core logs.
 
 ## Support
