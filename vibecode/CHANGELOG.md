@@ -20,3 +20,7 @@
 
 - Added automatic `config.toml` repair: a backup (`config.toml.bak`) is kept of the last known-good state, refreshed at every add-on start and after every successful modification.
 - If `config.toml` is invalid at startup, the add-on restores the backup; without a valid backup the corrupt file is moved to `config.toml.corrupt` and a fresh config is created.
+
+## 1.4.0
+
+- Added `vibe-login` command: sign in with your Mistral subscription inside the add-on. It runs the same browser sign-in flow as `vibe --setup` but prints the sign-in URL as copyable text, waits for you to complete it in your own browser, and stores the API key in `~/.vibe/.env`.
