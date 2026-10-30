@@ -18,6 +18,19 @@ SESSION_PERSIST=$(jq -r 'if .session_persistence == null then true else .session
 WORK_DIR=$(jq -r '.working_directory // "/homeassistant"' /data/options.json)
 ENABLE_MCP=$(jq -r 'if .enable_mcp == null then true else .enable_mcp end' /data/options.json)
 AUTO_UPDATE=$(jq -r '.auto_update_vibe // false' /data/options.json)
+API_KEY=$(jq -r '.mistral_api_key // ""' /data/options.json)
+
+if [ -n "$API_KEY" ]; then
+    mkdir -p "$PERSIST_DIR"
+    touch "$PERSIST_DIR/.env"
+    if grep -q '^MISTRAL_API_KEY=' "$PERSIST_DIR/.env" 2>/dev/null; then
+        sed -i "s|^MISTRAL_API_KEY=.*$|MISTRAL_API_KEY=$API_KEY|" "$PERSIST_DIR/.env"
+    else
+        printf 'MISTRAL_API_KEY=%s\n' "$API_KEY" >> "$PERSIST_DIR/.env"
+    fi
+    chmod 600 "$PERSIST_DIR/.env"
+    echo '[INFO] Mistral API key saved to /homeassistant/.vibe/.env'
+fi
 
 if [ "$AUTO_UPDATE" = "true" ]; then
     echo "[WARN] auto_update_vibe=true; updating the CLI may install a version that was not verified at build time"

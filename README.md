@@ -9,7 +9,9 @@ Based on the [Claude Code add-on](https://github.com/robsonfelix/robsonfelix-has
 1. Settings → Add-ons → Add-on Store → ⋮ → Repositories, add: `https://github.com/FireStarter75/hass-vibe-addon`
 2. Install **Vibe Code** from the store.
 3. Start the add-on and open the web UI from the sidebar.
-4. In the terminal, run `vibe --setup` once and log in with your Mistral account (subscription) or paste an API key. Credentials are stored persistently in `/homeassistant/.vibe`.
+4. Paste your Mistral API key into the `mistral_api_key` option (Settings → Add-ons → Vibe Code → Configuration). The key is saved persistently to `/homeassistant/.vibe/.env` and picked up by the CLI.
+
+Alternative: run `vibe --setup` in the terminal. Note that the browser sign-in link cannot work inside a container (there is no browser); choose the API key option in the setup screen instead. Pasting in the web terminal uses Ctrl+Shift+V (or right-click), not Ctrl+V.
 
 ## Features
 
@@ -23,6 +25,7 @@ Based on the [Claude Code add-on](https://github.com/robsonfelix/robsonfelix-has
 
 | Option | Default | Description |
 |---|---|---|
+| `mistral_api_key` | `""` | Mistral API key, saved to `/homeassistant/.vibe/.env` at startup |
 | `enable_mcp` | `true` | Register the `homeassistant` MCP server with Vibe |
 | `terminal_font_size` | `14` | Web terminal font size (10–24) |
 | `terminal_theme` | `dark` | `dark` or `light` |
