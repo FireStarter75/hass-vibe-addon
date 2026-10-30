@@ -37,8 +37,17 @@ Inspired by the [Claude Code add-on](https://github.com/robsonfelix/robsonfelix-
 
 Get an API key from **[console.mistral.ai](https://console.mistral.ai)** (the same key works with a subscription, the free tier, or pay-as-you-go).
 
-- **Recommended:** paste the key into the `mistral_api_key` option (Settings → Add-ons → Vibe Code → Configuration). The add-on stores it in `/homeassistant/.vibe/.env`, which the Vibe CLI loads automatically as its global environment file. The file is stored with restrictive permissions (`chmod 600`).
-- **Alternative:** run `vibe --setup` in the add-on terminal and use the API-key option there. Note that the browser-based sign-in link does not work inside a container (there is no browser), and pasting in a web terminal uses **Ctrl+Shift+V** (or right-click), not Ctrl+V.
+There are two ways to authenticate. To use your **Mistral subscription** (like the Claude Code add-on), run `vibe-login` in the add-on terminal:
+
+1. Run `vibe-login` (alias: `login`)
+2. It prints a sign-in URL — select it in the terminal, copy with **Ctrl+Shift+C**, and open it in any browser on your network
+3. Sign in with your Mistral account and approve the Vibe CLI access
+4. Back in the add-on terminal, the script detects the completed sign-in and stores the API key automatically
+
+Alternatively, use an API key from **[console.mistral.ai](https://console.mistral.ai)** (works with a subscription, the free tier, or pay-as-you-go):
+
+- Paste the key into the `mistral_api_key` option (Settings → Add-ons → Vibe Code → Configuration). The add-on stores it in `/homeassistant/.vibe/.env`, which the Vibe CLI loads automatically as its global environment file. The file is stored with restrictive permissions (`chmod 600`).
+- Or run `vibe --setup` in the add-on terminal and use the API-key option there. Note that the built-in browser sign-in link cannot open a browser inside a container; use `vibe-login` instead for subscription login. Pasting in a web terminal uses **Ctrl+Shift+V** (or right-click), not Ctrl+V.
 
 ## Add-on configuration
 
@@ -75,6 +84,7 @@ Useful shell aliases are pre-configured:
 |---|---|---|
 | `v` | `vibe` | Start (or resume) Vibe |
 | `stats` | `vibe-stats` | Token usage and cost overview |
+| `login` | `vibe-login` | Sign in with your Mistral subscription |
 | `ha-config` | `cd /homeassistant` | Jump to the HA configuration directory |
 | `ha-logs` | `ha core logs \| tail -100` | Show recent Home Assistant logs |
 
@@ -136,7 +146,8 @@ hass-vibe-addon/
 
 ## Troubleshooting
 
-- **`vibe` asks for login every restart** — make sure you either set `mistral_api_key` in the add-on configuration or completed `vibe --setup`. Both write to `/homeassistant/.vibe`, which persists across restarts.
+- **`vibe` asks for login every restart** — make sure you either ran `vibe-login`, set `mistral_api_key` in the add-on configuration, or completed `vibe --setup`. All write to `/homeassistant/.vibe`, which persists across restarts.
+- **Browser sign-in link inside `vibe --setup` does not work** — expected inside a container; use `vibe-login` instead, which prints the URL as copyable text.
 - **Cannot paste the API key in the terminal** — use **Ctrl+Shift+V** or right-click → Paste. Ctrl+V does not work in web terminals.
 - **Browser sign-in link does not work** — expected inside a container; use the API-key option in `vibe --setup` or the add-on option instead.
 - **`ha` command not found** — the HA CLI is only published for amd64 and aarch64; on other architectures it is unavailable.

@@ -1,0 +1,93 @@
+#!/usr/bin/env python3
+"""Log in to Mistral with your Vibe subscription inside the add-on.
+
+Runs the same browser sign-in flow as `vibe --setup`, but prints the
+sign-in URL as copyable text (there is no browser inside the add-on
+container). After you complete the sign-in in your own browser, this
+script stores the resulting API key in ~/.vibe/.env, which the Vibe
+CLI loads automatically.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import base64
+import hashlib
+import os
+import secrets
+import sys
+from pathlib import Path
+
+from dotenv import set_key
+
+from vibe.core.paths import GLOBAL_ENV_FILE
+from vibe.setup.auth.http_browser_sign_in_gateway import (
+    HttpBrowserSignInGateway,
+)
+
+BROWSER_BASE_URL = "https://console.mistral.ai"
+API_BASE_URL = "https://console.mistral.ai/api"
+POLL_INTERVAL = 3.0
+
+
+async def main() -> int:
+    gateway = HttpBrowserSignInGateway(BROWSER_BASE_URL, API_BASE_URL)
+    async with gateway:
+        verifier = secrets.token_urlsafe(64)
+        challenge = (
+            base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())
+            .rstrip(b"=")
+            .decode()
+        )
+        try:
+            process = await gateway.create_process(challenge)
+        except Exception as err:
+            print(f"Could not start sign-in: {err}", file=sys.stderr)
+            return 1
+
+        print("Open this URL in any browser and sign in with your Mistral")
+        print("account (subscription):")
+        print()
+        print(f"  {process.sign_in_url}")
+        print()
+        print("To copy from this terminal, select the URL with the mouse and")
+        print("use Ctrl+Shift+C (or your browser's copy). Right-click paste")
+        print("elsewhere works with Ctrl+Shift+V.")
+        print()
+        print(f"Waiting for sign-in (valid until {process.expires_at:%H:%M:%S} UTC)...")
+
+        exchange_token = None
+        while True:
+            await asyncio.sleep(POLL_INTERVAL)
+            try:
+                result = await gateway.poll(process.poll_url)
+            except Exception as err:
+                print(f"Polling failed: {err}", file=sys.stderr)
+                return 1
+            if result.status == "completed":
+                exchange_token = result.exchange_token
+                break
+            if result.status in ("expired", "denied"):
+                print(f"Sign-in {result.status}. Run vibe-login again.", file=sys.stderr)
+                return 1
+
+        try:
+            api_key = await gateway.exchange(process.process_id, exchange_token, verifier)
+        except Exception as err:
+            print(f"Could not exchange sign-in for an API key: {err}", file=sys.stderr)
+            return 1
+
+    path: Path = GLOBAL_ENV_FILE.path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    set_key(path, "MISTRAL_API_KEY", api_key)
+    os.environ["MISTRAL_API_KEY"] = api_key
+    os.chmod(path, 0o600)
+
+    print()
+    print(f"API key saved to {path}")
+    print("You are logged in with your Mistral subscription. Run `vibe` to start.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(asyncio.run(main()))
