@@ -1,39 +1,160 @@
-# Vibe Code Home Assistant Add-on
+# Vibe Code for Home Assistant
 
-Run the [Mistral Vibe Code](https://github.com/mistralai/mistral-vibe) CLI inside Home Assistant, with a web terminal (sidebar panel), access to your Home Assistant configuration, and optional Home Assistant MCP integration.
+Run the [Mistral Vibe Code](https://github.com/mistralai/mistral-vibe) CLI — Mistral's open-source AI coding agent — directly inside your Home Assistant installation. Get a full AI coding assistant in your browser that can read and edit your Home Assistant configuration, create automations, debug issues, and manage your smart home setup.
 
-Based on the [Claude Code add-on](https://github.com/robsonfelix/robsonfelix-hass-addons) by Robson Felix.
-
-## Installation
-
-1. Settings → Add-ons → Add-on Store → ⋮ → Repositories, add: `https://github.com/FireStarter75/hass-vibe-addon`
-2. Install **Vibe Code** from the store.
-3. Start the add-on and open the web UI from the sidebar.
-4. In the terminal, run `vibe --setup` once and log in with your Mistral account (subscription) or paste an API key. Credentials are stored persistently in `/homeassistant/.vibe`.
+Inspired by the [Claude Code add-on](https://github.com/robsonfelix/robsonfelix-hass-addons) by Robson Felix.
 
 ## Features
 
-- Full Vibe Code CLI in a browser terminal (ttyd), reachable from the HA sidebar
-- Working directory is `/homeassistant` (your HA config), so Vibe can read and edit your configuration, automations and dashboards
-- Session persistence via tmux (terminal survives browser refresh)
-- Optional `hass-mcp` MCP server so Vibe can query entities, states and automations through the Home Assistant API
-- Configurable font size, terminal theme and auto-update of the CLI
+- **Full Vibe Code CLI** running inside a web terminal (ttyd), reachable from the Home Assistant sidebar via Ingress
+- **Smart home aware** — the working directory is your Home Assistant configuration (`/homeassistant`), so Vibe can read and edit `configuration.yaml`, automations, dashboards, scripts and more
+- **Home Assistant MCP integration** — Vibe can query entities, states, automations and call services through the `hass-mcp` MCP server
+- **Token usage & cost tracking** — the built-in `vibe-stats` command aggregates token usage and estimated costs across all your sessions
+- **Persistent credentials** — your API key and Vibe configuration live in `/homeassistant/.vibe` and survive add-on restarts, rebuilds and reinstalls (and are included in HA backups)
+- **Session persistence** — terminal sessions run inside tmux, so your Vibe session survives a browser refresh or closed tab
+- **Configurable** — terminal theme, font size, working directory and auto-update options
+- **Multi-arch** — builds for amd64, aarch64, armv7, armhf and i386
+
+## Installation
+
+### Step 1: Add the repository
+
+1. In Home Assistant, go to **Settings → Add-ons → Add-on Store**
+2. Click the **⋮** menu (top right) → **Repositories**
+3. Add: `https://github.com/FireStarter75/hass-vibe-addon`
+4. Refresh the add-on store
+
+### Step 2: Install the add-on
+
+1. Find **Vibe Code** in the store and click it
+2. Click **Install** (the image is built on HA's build infrastructure; this can take a few minutes)
+3. Go to the **Configuration** tab and set your Mistral API key (see below)
+4. **Save**, then **Start** the add-on
+5. Enable **Show in sidebar** if you want quick access
+6. Open **Vibe Code** from the sidebar and run `vibe`
+
+### Step 3: Configure your API key
+
+Get an API key from **[console.mistral.ai](https://console.mistral.ai)** (the same key works with a subscription, the free tier, or pay-as-you-go).
+
+- **Recommended:** paste the key into the `mistral_api_key` option (Settings → Add-ons → Vibe Code → Configuration). The add-on stores it in `/homeassistant/.vibe/.env`, which the Vibe CLI loads automatically as its global environment file. The file is stored with restrictive permissions (`chmod 600`).
+- **Alternative:** run `vibe --setup` in the add-on terminal and use the API-key option there. Note that the browser-based sign-in link does not work inside a container (there is no browser), and pasting in a web terminal uses **Ctrl+Shift+V** (or right-click), not Ctrl+V.
 
 ## Add-on configuration
 
 | Option | Default | Description |
 |---|---|---|
-| `enable_mcp` | `true` | Register the `homeassistant` MCP server with Vibe |
+| `mistral_api_key` | `""` | Mistral API key; saved to `/homeassistant/.vibe/.env` at startup. Leave empty if you already logged in via `vibe --setup`. |
+| `enable_mcp` | `true` | Register the `homeassistant` MCP server with Vibe so it can query entities, states and automations |
 | `terminal_font_size` | `14` | Web terminal font size (10–24) |
-| `terminal_theme` | `dark` | `dark` or `light` |
+| `terminal_theme` | `dark` | `dark` or `light` terminal color scheme |
 | `working_directory` | `/homeassistant` | Directory Vibe starts in |
-| `session_persistence` | `true` | Keep the session alive in tmux |
-| `auto_update_vibe` | `false` | Update the CLI at add-on startup |
+| `session_persistence` | `true` | Keep the terminal session alive in tmux across browser refreshes |
+| `auto_update_vibe` | `false` | Update the Vibe CLI to the latest release at add-on startup (the build-time version is verified, updates are not) |
+
+## Usage
+
+Open **Vibe Code** from the sidebar. You get a full terminal with the Vibe CLI ready to go.
+
+### Examples
+
+Ask Vibe to help with your smart home, straight from the terminal:
+
+```text
+vibe
+> Look at my configuration.yaml and suggest how to restructure my automations
+> Create an automation that turns off all lights when nobody is home
+> Why is my binary_sensor.front_door not updating? Check the logs.
+```
+
+With the MCP integration enabled, Vibe can also inspect your running Home Assistant instance: list entities, read states, review automations and query history.
+
+Useful shell aliases are pre-configured:
+
+| Alias | Command | Description |
+|---|---|---|
+| `v` | `vibe` | Start (or resume) Vibe |
+| `stats` | `vibe-stats` | Token usage and cost overview |
+| `ha-config` | `cd /homeassistant` | Jump to the HA configuration directory |
+| `ha-logs` | `ha core logs \| tail -100` | Show recent Home Assistant logs |
+
+### Token usage and costs
+
+Run `vibe-stats` (alias: `stats`) in the add-on terminal to see aggregated token usage and estimated costs across all logged Vibe sessions:
+
+```
+================================================================
+VIBE CODE - TOKEN USAGE
+================================================================
+Sessions logged : 2
+Input tokens    : 20,000
+Output tokens   : 5,000
+Total tokens    : 25,000
+Est. total cost : $0.0750 (worst-case estimate)
+----------------------------------------------------------------
+Session                                      Tokens        Cost
+----------------------------------------------------------------
+Fix automations                              15,000     $0.0450
+Debug sensor                                 10,000     $0.0300
+----------------------------------------------------------------
+Note: costs are worst-case estimates per session (no prompt-cache
+discount). Account balance/credits: https://console.mistral.ai
+```
+
+The Vibe CLI logs every session's token counts and a worst-case cost estimate to `~/.vibe/logs/session/*/metadata.json`. Costs are estimates based on list prices without prompt-cache discounts. Your actual account balance, subscription usage and remaining credits are only visible in the [Mistral console](https://console.mistral.ai).
 
 ## Path mapping
 
-Inside the add-on `/homeassistant` is your HA configuration directory (equivalent to `/config` in HA Core).
+Inside the add-on container, paths differ from Home Assistant Core:
+
+| Path | Description | Access |
+|------|-------------|--------|
+| `/homeassistant` | HA configuration directory (= `/config` in HA Core) | read-write |
+| `/share` | Shared folder between add-ons | read-write |
+| `/media` | Media files | read-write |
+| `/ssl` | SSL certificates | read-only |
+| `/backup` | Backups | read-only |
+| `/data` | This add-on's own config (options) | read-write |
+
+When prompts mention `/config/...`, translate to `/homeassistant/...`.
+
+## File structure
+
+```
+hass-vibe-addon/
+├── repository.yaml          # Add-on store repository manifest
+├── README.md
+└── vibecode/                # The Vibe Code add-on
+    ├── config.yaml          # Add-on manifest (options, schema, ingress)
+    ├── build.yaml           # Build images per architecture
+    ├── Dockerfile           # Alpine + Python + Vibe CLI + ttyd + tmux + hass-mcp
+    ├── run.sh               # Startup script: env, API key, MCP, ttyd
+    ├── vibe-stats           # Token usage / cost aggregation command
+    ├── CHANGELOG.md
+    └── rootfs/root/         # Shell and tmux configuration
+```
+
+## Troubleshooting
+
+- **`vibe` asks for login every restart** — make sure you either set `mistral_api_key` in the add-on configuration or completed `vibe --setup`. Both write to `/homeassistant/.vibe`, which persists across restarts.
+- **Cannot paste the API key in the terminal** — use **Ctrl+Shift+V** or right-click → Paste. Ctrl+V does not work in web terminals.
+- **Browser sign-in link does not work** — expected inside a container; use the API-key option in `vibe --setup` or the add-on option instead.
+- **`ha` command not found** — the HA CLI is only published for amd64 and aarch64; on other architectures it is unavailable.
+- **MCP not working** — check the add-on logs at start; the MCP server is registered in `~/.vibe/config.toml`. You can verify with `cat ~/.vibe/config.toml`.
+- **Add-on logs** — Settings → Add-ons → Vibe Code → Log, or `ha-logs` inside the terminal for HA core logs.
+
+## Support
+
+- [Mistral Vibe CLI documentation](https://github.com/mistralai/mistral-vibe)
+- [Vibe Code docs](https://docs.mistral.ai/vibe/code/cli/install-setup)
+- [Home Assistant add-on development docs](https://developers.home-assistant.io/docs/add-ons/)
+
+Bugs and feature requests: open an issue on [this repository](https://github.com/FireStarter75/hass-vibe-addon/issues).
 
 ## Disclaimer
 
-Vibe can run shell commands and edit your configuration. Always keep backups before letting an AI agent make changes.
+Vibe Code is an AI agent that can read your configuration, write files and run shell commands inside the add-on container. Always keep Home Assistant backups enabled before letting an AI agent make changes to your configuration. The authors accept no liability for broken configurations.
+
+## License
+
+[MIT](LICENSE)
