@@ -33,3 +33,7 @@
 
 - Added `vibe-models` command (alias: `models`): interactive picker that fetches the live model list from the Mistral API (`/v1/models`) and registers models into `~/.vibe/config.toml` so they appear in the CLI's `/model` picker. Also usable non-interactively with `--sync` (register all new recommended coding models) and `--list` (print available models).
 - Added `auto_models` option (default `true`): at add-on startup, new Mistral-hosted coding models are registered automatically, so the latest models are always available without manual configuration.
+
+## 1.6.1
+
+- `vibe-models` now falls back to a curated model list when the API's `/v1/models` listing rejects the key (401/403). Subscription keys obtained via `vibe-login` often cannot list models; the picker and auto-sync still work with the curated list in that case.
