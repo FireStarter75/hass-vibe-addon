@@ -1,6 +1,6 @@
 name: Vibe Code
 description: Run the Mistral Vibe Code AI coding assistant inside Home Assistant to create automations, debug issues, and manage your smart home configuration
-version: "1.4.0"
+version: "1.5.0"
 slug: vibecode
 url: https://github.com/FireStarter75/hass-vibe-addon
 arch:
@@ -32,6 +32,8 @@ map:
 options:
   mistral_api_key: ""
   enable_mcp: true
+  active_model: ""
+  extra_models: []
   terminal_font_size: 14
   terminal_theme: dark
   working_directory: /homeassistant
@@ -40,6 +42,14 @@ options:
 schema:
   mistral_api_key: password?
   enable_mcp: bool
+  active_model: str?
+  extra_models:
+    - name: str
+      provider: str?
+      alias: str?
+      input_price: float?
+      output_price: float?
+      thinking: list(off|low|medium|high|max)?
   terminal_font_size: int(10,24)
   terminal_theme: list(dark|light)
   working_directory: str

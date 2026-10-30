@@ -19,6 +19,8 @@ WORK_DIR=$(jq -r '.working_directory // "/homeassistant"' /data/options.json)
 ENABLE_MCP=$(jq -r 'if .enable_mcp == null then true else .enable_mcp end' /data/options.json)
 AUTO_UPDATE=$(jq -r '.auto_update_vibe // false' /data/options.json)
 API_KEY=$(jq -r '.mistral_api_key // ""' /data/options.json)
+ACTIVE_MODEL=$(jq -r '.active_model // ""' /data/options.json)
+EXTRA_MODELS=$(jq -r '.extra_models // ""' /data/options.json)
 
 if [ -n "$API_KEY" ]; then
     mkdir -p "$PERSIST_DIR"
@@ -102,6 +104,66 @@ elif [ "$ENABLE_MCP" = "true" ]; then
 else
     echo '[INFO] MCP disabled'
 fi
+
+if [ "$VIBE_OK" = "true" ] && [ -n "$EXTRA_MODELS" ] && [ "$EXTRA_MODELS" != "null" ]; then
+    cp "$CONFIG_FILE" "$CONFIG_FILE.bak" 2>/dev/null || true
+    python3 - "$CONFIG_FILE" /data/options.json <<'PYEOF' && cp "$CONFIG_FILE" "$CONFIG_FILE.bak" \
+        || { cp "$CONFIG_FILE.bak" "$CONFIG_FILE" 2>/dev/null || true; echo '[ERROR] The extra_models option produced invalid TOML; rolled back. Check your add-on configuration.'; }
+import json, sys, tomllib, tomli_w
+config_path, options_path = sys.argv[1], sys.argv[2]
+with open(options_path) as f:
+    options = json.load(f)
+extras = options.get('extra_models') or []
+if not isinstance(extras, list):
+    extras = []
+with open(config_path, 'rb') as f:
+    data = tomllib.load(f)
+existing = {(m.get('name'), m.get('alias')) for m in data.get('models', [])}
+for m in extras:
+    entry = {
+        'name': str(m.get('name', '')),
+        'provider': str(m.get('provider', 'mistral')),
+        'alias': str(m.get('alias') or m.get('name', '')),
+    }
+    if 'input_price' in m:
+        entry['input_price'] = m['input_price']
+    if 'output_price' in m:
+        entry['output_price'] = m['output_price']
+    if m.get('thinking'):
+        entry['thinking'] = str(m['thinking'])
+    key = (entry['name'], entry['alias'])
+    if key in existing:
+        print(f"[INFO] Model '{entry['alias']}' already registered; skipping")
+        continue
+    data.setdefault('models', []).append(entry)
+    existing.add(key)
+if 'models' in data:
+    data['models'] = sorted(data['models'], key=lambda m: m.get('alias', ''))
+with open(config_path, 'wb') as f:
+    tomli_w.dump(data, f)
+print('[INFO] Extra models registered in ~/.vibe/config.toml')
+PYEOF
+fi
+if [ "$VIBE_OK" = "true" ] && [ -n "$ACTIVE_MODEL" ] && [ "$ACTIVE_MODEL" != "null" ]; then
+    if grep -q "^active_model[[:space:]]*=[[:space:]]*\"$ACTIVE_MODEL\"" "$CONFIG_FILE" 2>/dev/null; then
+        echo "[INFO] Active model: $ACTIVE_MODEL"
+    else
+        cp "$CONFIG_FILE" "$CONFIG_FILE.bak" 2>/dev/null || true
+        if grep -q '^active_model' "$CONFIG_FILE" 2>/dev/null; then
+            sed -i "s|^active_model[[:space:]]*=.*$|active_model = \"$ACTIVE_MODEL\"|" "$CONFIG_FILE"
+        else
+            sed -i "1i active_model = \"$ACTIVE_MODEL\"" "$CONFIG_FILE"
+        fi
+        if python3 -c "import tomllib; tomllib.load(open('$CONFIG_FILE','rb'))" 2>/dev/null; then
+            cp "$CONFIG_FILE" "$CONFIG_FILE.bak"
+            echo "[INFO] Active model set to $ACTIVE_MODEL"
+        else
+            cp "$CONFIG_FILE.bak" "$CONFIG_FILE" 2>/dev/null || true
+            echo '[ERROR] Could not set the active model; rolled back.'
+        fi
+    fi
+fi
+
 
 if [ "$THEME" = "dark" ]; then
     COLORS='background=#1e1e2e,foreground=#cdd6f4,cursor=#f5e0dc'

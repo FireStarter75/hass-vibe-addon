@@ -55,6 +55,8 @@ Alternatively, use an API key from **[console.mistral.ai](https://console.mistra
 |---|---|---|
 | `mistral_api_key` | `""` | Mistral API key; saved to `/homeassistant/.vibe/.env` at startup. Leave empty if you already logged in via `vibe --setup`. |
 | `enable_mcp` | `true` | Register the `homeassistant` MCP server with Vibe so it can query entities, states and automations |
+| `active_model` | `""` | Model alias to activate at startup (e.g. `glm-5.3`). Empty = keep the CLI default |
+| `extra_models` | `[]` | Additional models to register, e.g. Z.ai GLM 5.3 (Mistral-hosted) |
 | `terminal_font_size` | `14` | Web terminal font size (10–24) |
 | `terminal_theme` | `dark` | `dark` or `light` terminal color scheme |
 | `working_directory` | `/homeassistant` | Directory Vibe starts in |
@@ -112,6 +114,33 @@ discount). Account balance/credits: https://console.mistral.ai
 ```
 
 The Vibe CLI logs every session's token counts and a worst-case cost estimate to `~/.vibe/logs/session/*/metadata.json`. Costs are estimates based on list prices without prompt-cache discounts. Your actual account balance, subscription usage and remaining credits are only visible in the [Mistral console](https://console.mistral.ai).
+
+### Using other models (e.g. Z.ai GLM 5.3)
+
+The Vibe CLI ships with Mistral's own coding models. You can register additional models — for example **Z.ai GLM 5.3**, hosted by Mistral on `api.mistral.ai` — through the `extra_models` option and activate one with `active_model`:
+
+```json
+{
+  "active_model": "glm-5.3",
+  "extra_models": [
+    {
+      "name": "zai-glm-5-3",
+      "alias": "glm-5.3",
+      "input_price": 1.4,
+      "output_price": 4.4,
+      "thinking": "high"
+    }
+  ]
+}
+```
+
+- `name` is the model ID on the provider API (`zai-glm-5-3` for Mistral-hosted GLM 5.3)
+- `alias` is the short name you use to select the model
+- `input_price` / `output_price` (per million tokens) keep `vibe-stats` cost estimates accurate
+- `thinking` sets the reasoning effort: `off`, `low`, `medium`, `high` or `max`
+- `provider` defaults to `mistral`; use it for any OpenAI-compatible provider
+
+Restart the add-on after changing models. You can also switch models inside a running session with the CLI's `/model` command.
 
 ## Path mapping
 

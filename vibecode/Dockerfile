@@ -46,7 +46,7 @@ RUN case "${BUILD_ARCH}" in \
 
 RUN pip3 install --no-cache-dir --break-system-packages "mistral-vibe" && \
     vibe --version > /etc/vibe-code-version && \
-    pip3 install --no-cache-dir --break-system-packages hass-mcp
+    pip3 install --no-cache-dir --break-system-packages hass-mcp tomli-w
 
 ARG HA_CLI_VERSION=5.2.0
 RUN case "${BUILD_ARCH}" in \
