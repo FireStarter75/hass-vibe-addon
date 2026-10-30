@@ -24,3 +24,7 @@
 ## 1.4.0
 
 - Added `vibe-login` command: sign in with your Mistral subscription inside the add-on. It runs the same browser sign-in flow as `vibe --setup` but prints the sign-in URL as copyable text, waits for you to complete it in your own browser, and stores the API key in `~/.vibe/.env`.
+
+## 1.5.0
+
+- Added `extra_models` and `active_model` options: register additional models (e.g. Z.ai GLM 5.3 hosted by Mistral as `zai-glm-5-3`) and select the active model from the add-on configuration. Model entries are written idempotently to `~/.vibe/config.toml` with TOML validation and rollback.
