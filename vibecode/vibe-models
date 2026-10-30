@@ -41,6 +41,17 @@ CODING_HINTS = (
 KNOWN_NON_TEXT = ("embed", "ocr", "transcribe", "tts", " moderation", "pixtral", "voxtral", "moderation")
 
 
+FALLBACK_MODELS: list[dict[str, Any]] = [
+    {"id": "zai-glm-5-3"},
+    {"id": "devstral-small-latest"},
+    {"id": "devstral-medium-latest"},
+    {"id": "mistral-medium-latest"},
+    {"id": "mistral-small-latest"},
+    {"id": "mistral-large-latest"},
+    {"id": "magistral-medium-latest"},
+]
+
+
 def api_key() -> str:
     return os.environ.get("MISTRAL_API_KEY", "")
 
@@ -180,13 +191,25 @@ def main() -> int:
         return 1
     os.environ["MISTRAL_API_KEY"] = key
 
+    source = "live"
     try:
         models = fetch_models(key)
+    except httpx.HTTPStatusError as err:
+        if err.response.status_code in (401, 403):
+            print("[WARN] The Mistral API rejected the models listing (401/403). Subscription keys")
+            print("[WARN] often cannot list models; falling back to a curated model list.")
+            models = FALLBACK_MODELS
+            source = "curated"
+        else:
+            print(f"[ERROR] Could not fetch models from the Mistral API: {err}", file=sys.stderr)
+            return 1
     except Exception as err:
         print(f"[ERROR] Could not fetch models from the Mistral API: {err}", file=sys.stderr)
         return 1
 
     if args.list:
+        if source == "curated":
+            print("[NOTE] Curated list (live API listing unavailable with this key)")
         for m in sorted(models, key=lambda x: x.get("id", "")):
             mid = m.get("id", "")
             status = "text" if is_text_model(m) else "other"
