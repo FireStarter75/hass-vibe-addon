@@ -57,6 +57,7 @@ Alternatively, use an API key from **[console.mistral.ai](https://console.mistra
 | `enable_mcp` | `true` | Register the `homeassistant` MCP server with Vibe so it can query entities, states and automations |
 | `active_model` | `""` | Model alias to activate at startup (e.g. `glm-5.3`). Empty = keep the CLI default |
 | `extra_models` | `[]` | Additional models to register, e.g. Z.ai GLM 5.3 (Mistral-hosted) |
+| `auto_models` | `true` | At startup, automatically register new Mistral-hosted coding models found on the API |
 | `terminal_font_size` | `14` | Web terminal font size (10–24) |
 | `terminal_theme` | `dark` | `dark` or `light` terminal color scheme |
 | `working_directory` | `/homeassistant` | Directory Vibe starts in |
@@ -114,6 +115,16 @@ discount). Account balance/credits: https://console.mistral.ai
 ```
 
 The Vibe CLI logs every session's token counts and a worst-case cost estimate to `~/.vibe/logs/session/*/metadata.json`. Costs are estimates based on list prices without prompt-cache discounts. Your actual account balance, subscription usage and remaining credits are only visible in the [Mistral console](https://console.mistral.ai).
+
+### Automatic model discovery
+
+With `auto_models: true` (default), the add-on fetches the live model list from the Mistral API at every start and registers new coding/agentic models automatically — the latest models (like Z.ai GLM 5.3) are always available without manual configuration. Inside the add-on terminal:
+
+- `models` (or `vibe-models`) — interactive picker: shows everything available on the API, lets you pick which to register
+- `vibe-models --list` — print all models currently available on the API
+- `vibe-models --sync` — register all new recommended coding models non-interactively
+
+Once registered, models appear in the CLI's `/model` picker. Prices for `vibe-stats` are known for common models and default to 0 (unknown) otherwise; override with `extra_models`.
 
 ### Using other models (e.g. Z.ai GLM 5.3)
 

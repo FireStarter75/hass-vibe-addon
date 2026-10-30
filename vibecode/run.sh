@@ -21,6 +21,7 @@ AUTO_UPDATE=$(jq -r '.auto_update_vibe // false' /data/options.json)
 API_KEY=$(jq -r '.mistral_api_key // ""' /data/options.json)
 ACTIVE_MODEL=$(jq -r '.active_model // ""' /data/options.json)
 EXTRA_MODELS=$(jq -r '.extra_models // ""' /data/options.json)
+AUTO_MODELS=$(jq -r 'if .auto_models == null then false else .auto_models end' /data/options.json)
 
 if [ -n "$API_KEY" ]; then
     mkdir -p "$PERSIST_DIR"
@@ -164,6 +165,15 @@ if [ "$VIBE_OK" = "true" ] && [ -n "$ACTIVE_MODEL" ] && [ "$ACTIVE_MODEL" != "nu
     fi
 fi
 
+
+if [ "$VIBE_OK" = "true" ] && [ "$AUTO_MODELS" = "true" ]; then
+    echo '[INFO] Syncing available Mistral models (auto_models)...'
+    if vibe-models --sync; then
+        :
+    else
+        echo '[WARN] Model sync failed (network or API error); keeping the current model list'
+    fi
+fi
 
 if [ "$THEME" = "dark" ]; then
     COLORS='background=#1e1e2e,foreground=#cdd6f4,cursor=#f5e0dc'
