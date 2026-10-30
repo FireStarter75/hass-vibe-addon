@@ -48,15 +48,29 @@ else
 fi
 
 CONFIG_FILE=/root/.vibe/config.toml
-if [ "$VIBE_OK" = "true" ] && [ "$ENABLE_MCP" = "true" ]; then
-    mkdir -p /root/.vibe
-    if [ ! -f "$CONFIG_FILE" ]; then
+mkdir -p /root/.vibe
+if [ ! -f "$CONFIG_FILE" ]; then
+    printf '' > "$CONFIG_FILE"
+fi
+if ! python3 -c "import tomllib; tomllib.load(open('$CONFIG_FILE','rb'))" 2>/dev/null; then
+    echo '[ERROR] ~/.vibe/config.toml is invalid TOML; attempting repair from backup'
+    if [ -f "$CONFIG_FILE.bak" ] && python3 -c "import tomllib; tomllib.load(open('$CONFIG_FILE.bak','rb'))" 2>/dev/null; then
+        cp "$CONFIG_FILE.bak" "$CONFIG_FILE"
+        echo '[INFO] Restored config.toml from the last known-good backup'
+    else
+        mv "$CONFIG_FILE" "$CONFIG_FILE.corrupt" 2>/dev/null || true
         printf '' > "$CONFIG_FILE"
+        echo '[WARN] No valid backup found; the corrupt file was moved to config.toml.corrupt and a fresh one was created'
     fi
-    if ! grep -q '^\[\[mcp_servers\]\]' "$CONFIG_FILE" || ! grep -q 'name = "homeassistant"' "$CONFIG_FILE"; then
-        if grep -q '^\[\[mcp_servers\]\]' "$CONFIG_FILE"; then
-            echo '[WARN] An MCP server entry already exists in ~/.vibe/config.toml; not appending homeassistant'
-        fi
+fi
+cp "$CONFIG_FILE" "$CONFIG_FILE.bak"
+if [ "$VIBE_OK" = "true" ] && [ "$ENABLE_MCP" = "true" ]; then
+    HA_MCP_CONFIGURED=false
+    if grep -q 'name = "homeassistant"' "$CONFIG_FILE" 2>/dev/null; then
+        HA_MCP_CONFIGURED=true
+    elif grep -qE '^(mcp_servers)[[:space:]]*=' "$CONFIG_FILE" 2>/dev/null; then
+        echo '[WARN] An inline mcp_servers array exists in ~/.vibe/config.toml; add the homeassistant server there manually instead of the add-on appending one'
+    else
         cat >> "$CONFIG_FILE" << 'EOF'
 
 [[mcp_servers]]
@@ -64,7 +78,24 @@ name = "homeassistant"
 transport = "stdio"
 command = "hass-mcp"
 EOF
-        echo '[INFO] MCP configured with Home Assistant integration'
+        if python3 -c "import tomllib; tomllib.load(open('$CONFIG_FILE','rb'))" 2>/dev/null; then
+            HA_MCP_CONFIGURED=true
+            cp "$CONFIG_FILE" "$CONFIG_FILE.bak"
+            echo '[INFO] MCP configured with Home Assistant integration'
+        else
+            python3 - "$CONFIG_FILE" << 'PYEOF'
+import sys
+path = sys.argv[1]
+with open(path) as f:
+    content = f.read()
+marker = '\n[[mcp_servers]]\nname = "homeassistant"'
+idx = content.find(marker)
+if idx != -1:
+    with open(path, 'w') as f:
+        f.write(content[:idx].rstrip() + '\n')
+PYEOF
+            echo '[ERROR] Appending the homeassistant MCP server made config.toml invalid; rolled back. Add it manually.'
+        fi
     fi
 elif [ "$ENABLE_MCP" = "true" ]; then
     echo '[WARN] MCP is enabled but was skipped: the vibe CLI is not responding'
