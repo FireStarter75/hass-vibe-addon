@@ -1,0 +1,218 @@
+#!/usr/bin/env python3
+"""Interactive model picker and sync for Mistral-hosted models.
+
+Fetches the live model list from the Mistral API (api.mistral.ai/v1/models)
+and lets you register models into ~/.vibe/config.toml so they appear in
+the CLI's /model picker. Without a TTY it runs in sync mode:
+
+    vibe-models --sync        add all currently available models
+    vibe-models --list        print available models and exit
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import sys
+from typing import Any
+
+import httpx
+import tomli_w
+import tomllib
+from vibe.core.paths import GLOBAL_ENV_FILE
+
+API_URL = "https://api.mistral.ai/v1/models"
+CONFIG_PATH = os.path.expanduser("~/.vibe/config.toml")
+ENV_PATH = str(GLOBAL_ENV_FILE.path)
+
+MODEL_PRICES: dict[str, tuple[float, float]] = {
+    "zai-glm-5-3": (1.4, 4.4),
+    "mistral-vibe-cli-latest": (1.5, 7.5),
+    "devstral-small-latest": (0.1, 0.3),
+}
+DEFAULT_PRICES = (0.0, 0.0)
+CODING_HINTS = (
+    "vibe",
+    "devstral",
+    "codestral",
+    "glm",
+    "coder",
+)
+KNOWN_NON_TEXT = ("embed", "ocr", "transcribe", "tts", " moderation", "pixtral", "voxtral", "moderation")
+
+
+def api_key() -> str:
+    return os.environ.get("MISTRAL_API_KEY", "")
+
+
+def load_env_file() -> str:
+    try:
+        with open(ENV_PATH) as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("MISTRAL_API_KEY="):
+                    return line.split("=", 1)[1].strip().strip('"')
+    except OSError:
+        pass
+    return os.environ.get("MISTRAL_API_KEY", "")
+
+
+def fetch_models(key: str) -> list[dict[str, Any]]:
+    resp = httpx.get(API_URL, headers={"Authorization": f"Bearer {key}"}, timeout=15)
+    resp.raise_for_status()
+    return resp.json().get("data", [])
+
+
+def is_text_model(model: dict[str, Any]) -> bool:
+    mid = model.get("id", "")
+    caps = model.get("capabilities", {})
+    if isinstance(caps, dict):
+        completion = caps.get("completion_chat")
+        if completion is not None:
+            return bool(completion)
+    return not any(hint in mid for hint in KNOWN_NON_TEXT)
+
+
+def is_relevant(mid: str) -> bool:
+    mid_lower = mid.lower()
+    return any(hint in mid_lower for hint in CODING_HINTS)
+
+
+def load_config() -> dict[str, Any]:
+    try:
+        with open(CONFIG_PATH, "rb") as f:
+            return tomllib.load(f)
+    except FileNotFoundError:
+        return {}
+    except tomllib.TOMLDecodeError:
+        print(f"[ERROR] {CONFIG_PATH} is invalid TOML; not modifying it.", file=sys.stderr)
+        raise SystemExit(1)
+
+
+def save_config(data: dict[str, Any]) -> None:
+    with open(CONFIG_PATH, "wb") as f:
+        tomli_w.dump(data, f)
+
+
+def register(data: dict[str, Any], mid: str) -> bool:
+    alias = mid.replace("-latest", "")
+    models = data.setdefault("models", [])
+    if any(m.get("alias") == alias or m.get("name") == mid for m in models):
+        return False
+    inp, outp = MODEL_PRICES.get(mid, MODEL_PRICES.get(alias, DEFAULT_PRICES))
+    models.append(
+        {
+            "name": mid,
+            "provider": "mistral",
+            "alias": alias,
+            "input_price": inp,
+            "output_price": outp,
+        }
+    )
+    return True
+
+
+def default_sync(data: dict[str, Any], models: list[dict[str, Any]]) -> int:
+    added = 0
+    for m in sorted(models, key=lambda x: x.get("id", "")):
+        mid = m.get("id", "")
+        if not mid or not is_text_model(m):
+            continue
+        if not is_relevant(mid):
+            continue
+        if register(data, mid):
+            added += 1
+            print(f"[INFO] Registered new model: {mid} (alias: {mid.replace('-latest','')})")
+    return added
+
+
+def interactive(models: list[dict[str, Any]], data: dict[str, Any]) -> None:
+    candidates = [m["id"] for m in models if is_text_model(m)]
+    registered = {m.get("name") for m in data.get("models", [])}
+    new = [c for c in candidates if c not in registered]
+    existing = [c for c in candidates if c in registered]
+
+    print("=" * 60)
+    print("MISTRAL MODELS")
+    print("=" * 60)
+    if existing:
+        print("\nAlready registered (available via /model):")
+        for c in existing:
+            mark = " *" if is_relevant(c) else ""
+            print(f"  {c}{mark}")
+    if new:
+        print("\nAvailable on the API but not yet registered:")
+        for i, c in enumerate(new, 1):
+            mark = " *" if is_relevant(c) else ""
+            print(f"  {i:2d}. {c}{mark}")
+        print("\n  * = recommended coding/agentic model")
+        raw = input("\nNumbers to add (comma-separated, 'a' = all, Enter = quit): ").strip()
+        if not raw:
+            print("Nothing added.")
+            return
+        picks = list(range(1, len(new) + 1)) if raw.lower() == "a" else [
+            int(x) for x in raw.replace(" ", "").split(",") if x.isdigit() and 1 <= int(x) <= len(new)
+        ]
+        added = 0
+        for p in picks:
+            if register(data, new[p - 1]):
+                added += 1
+                print(f"Added: {new[p - 1]}")
+        if added:
+            save_config(data)
+            print(f"\n{added} model(s) added. Run /reload or restart vibe, then pick via /model.")
+        else:
+            print("\nNo new models added.")
+    else:
+        print("\nAll available models are already registered.")
+        print("Use /model inside vibe to switch.")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Manage Mistral models for the Vibe CLI")
+    parser.add_argument("--sync", action="store_true", help="Non-interactive: register all new recommended models")
+    parser.add_argument("--list", action="store_true", help="List available models and exit")
+    args = parser.parse_args()
+
+    key = load_env_file() or api_key()
+    if not key:
+        print("[ERROR] No MISTRAL_API_KEY found (run vibe-login or set mistral_api_key).", file=sys.stderr)
+        return 1
+    os.environ["MISTRAL_API_KEY"] = key
+
+    try:
+        models = fetch_models(key)
+    except Exception as err:
+        print(f"[ERROR] Could not fetch models from the Mistral API: {err}", file=sys.stderr)
+        return 1
+
+    if args.list:
+        for m in sorted(models, key=lambda x: x.get("id", "")):
+            mid = m.get("id", "")
+            status = "text" if is_text_model(m) else "other"
+            star = " *" if is_relevant(mid) else ""
+            print(f"{mid:<42} {status}{star}")
+        return 0
+
+    data = load_config()
+    if args.sync:
+        added = default_sync(data, models)
+        if added:
+            save_config(data)
+            print(f"[INFO] {added} new model(s) registered")
+        else:
+            print("[INFO] No new models to register")
+        return 0
+
+    if not sys.stdin.isatty():
+        print("[WARN] Not a TTY; use --sync or --list. Showing available models:")
+        for m in sorted(models, key=lambda x: x.get("id", "")):
+            print(f"  {m.get('id','')}")
+        return 0
+
+    interactive(models, data)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -65,7 +65,8 @@ COPY rootfs/root/.tmux.conf /root/.tmux.conf
 COPY rootfs/root/.bashrc /root/.bashrc
 COPY vibe-stats /usr/local/bin/vibe-stats
 COPY vibe-login /usr/local/bin/vibe-login
-RUN chmod +x /usr/local/bin/vibe-stats /usr/local/bin/vibe-login
+COPY vibe-models /usr/local/bin/vibe-models
+RUN chmod +x /usr/local/bin/vibe-stats /usr/local/bin/vibe-login /usr/local/bin/vibe-models
 
 RUN echo 'source ~/.bashrc' > /root/.profile
 

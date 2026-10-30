@@ -28,3 +28,8 @@
 ## 1.5.0
 
 - Added `extra_models` and `active_model` options: register additional models (e.g. Z.ai GLM 5.3 hosted by Mistral as `zai-glm-5-3`) and select the active model from the add-on configuration. Model entries are written idempotently to `~/.vibe/config.toml` with TOML validation and rollback.
+
+## 1.6.0
+
+- Added `vibe-models` command (alias: `models`): interactive picker that fetches the live model list from the Mistral API (`/v1/models`) and registers models into `~/.vibe/config.toml` so they appear in the CLI's `/model` picker. Also usable non-interactively with `--sync` (register all new recommended coding models) and `--list` (print available models).
+- Added `auto_models` option (default `true`): at add-on startup, new Mistral-hosted coding models are registered automatically, so the latest models are always available without manual configuration.
