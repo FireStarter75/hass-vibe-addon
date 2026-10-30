@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+"""Aggregate Vibe CLI session token usage and estimated costs."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+VIBE_SESSION_DIR = Path.home() / ".vibe" / "logs" / "session"
+
+
+def load_sessions() -> list[dict]:
+    sessions = []
+    if not VIBE_SESSION_DIR.is_dir():
+        return sessions
+    for metadata_file in sorted(VIBE_SESSION_DIR.glob("*/metadata.json")):
+        try:
+            data = json.loads(metadata_file.read_text())
+        except (OSError, json.JSONDecodeError):
+            continue
+        stats = data.get("stats") or {}
+        sessions.append(
+            {
+                "id": metadata_file.parent.name,
+                "title": data.get("title") or metadata_file.parent.name[:16],
+                "end_time": data.get("end_time") or data.get("start_time") or "?",
+                "prompt_tokens": stats.get("session_prompt_tokens", 0),
+                "completion_tokens": stats.get("session_completion_tokens", 0),
+                "total_tokens": stats.get("session_prompt_tokens", 0)
+                + stats.get("session_completion_tokens", 0),
+                "cost_usd": stats.get("session_cost", 0.0),
+                "steps": stats.get("steps", 0),
+            }
+        )
+    return sessions
+
+
+def fmt_usd(value: float) -> str:
+    return f"${value:.4f}" if value < 1 else f"${value:.2f}"
+
+
+def main() -> int:
+    sessions = load_sessions()
+    if not sessions:
+        print(f"No logged sessions found in {VIBE_SESSION_DIR}")
+        print("Run 'vibe' first; session logging must be enabled (default).")
+        return 0
+
+    total_prompt = sum(s["prompt_tokens"] for s in sessions)
+    total_completion = sum(s["completion_tokens"] for s in sessions)
+    total_tokens = total_prompt + total_completion
+    total_cost = sum(s["cost_usd"] for s in sessions)
+
+    print("=" * 64)
+    print("VIBE CODE - TOKEN USAGE")
+    print("=" * 64)
+    print(f"Sessions logged : {len(sessions)}")
+    print(f"Input tokens    : {total_prompt:,}")
+    print(f"Output tokens   : {total_completion:,}")
+    print(f"Total tokens    : {total_tokens:,}")
+    print(f"Est. total cost : {fmt_usd(total_cost)} (worst-case estimate)")
+    print("-" * 64)
+    print(f"{'Session':<38} {'Tokens':>12} {'Cost':>11}")
+    print("-" * 64)
+    for s in sorted(sessions, key=lambda x: x["total_tokens"], reverse=True)[:20]:
+        title = s["title"][:36]
+        print(f"{title:<38} {s['total_tokens']:>12,} {fmt_usd(s['cost_usd']):>11}")
+    print("-" * 64)
+    print("Note: costs are worst-case estimates per session (no prompt-cache")
+    print("discount). Account balance/credits: https://console.mistral.ai")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -40,3 +40,21 @@ Inside the add-on `/homeassistant` is your HA configuration directory (equivalen
 ## Disclaimer
 
 Vibe can run shell commands and edit your configuration. Always keep backups before letting an AI agent make changes.
+
+## Token usage and costs
+
+Run `vibe-stats` (alias: `stats`) in the add-on terminal to see aggregated token usage and estimated costs across all logged Vibe sessions:
+
+```
+================================================================
+VIBE CODE - TOKEN USAGE
+================================================================
+Sessions logged : 2
+Input tokens    : 20,000
+Output tokens   : 5,000
+Total tokens    : 25,000
+Est. total cost : $0.0750 (worst-case estimate)
+...
+```
+
+The Vibe CLI logs every session's token counts and a worst-case cost estimate (no prompt-cache discount) to `~/.vibe/logs/session/*/metadata.json`. Your actual account balance, subscription usage and credits are visible in the Mistral console: https://console.mistral.ai

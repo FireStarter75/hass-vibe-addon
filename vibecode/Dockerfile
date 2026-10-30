@@ -63,6 +63,8 @@ RUN mkdir -p /homeassistant /root/.config /root/.local/bin
 
 COPY rootfs/root/.tmux.conf /root/.tmux.conf
 COPY rootfs/root/.bashrc /root/.bashrc
+COPY vibe-stats /usr/local/bin/vibe-stats
+RUN chmod +x /usr/local/bin/vibe-stats
 
 RUN echo 'source ~/.bashrc' > /root/.profile
 

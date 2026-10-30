@@ -1,6 +1,6 @@
 name: Vibe Code
 description: Run the Mistral Vibe Code AI coding assistant inside Home Assistant to create automations, debug issues, and manage your smart home configuration
-version: "1.1.0"
+version: "1.2.0"
 slug: vibecode
 url: https://github.com/FireStarter75/hass-vibe-addon
 arch:
