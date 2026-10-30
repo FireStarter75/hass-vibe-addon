@@ -48,11 +48,23 @@ else
 fi
 
 CONFIG_FILE=/root/.vibe/config.toml
-if [ "$VIBE_OK" = "true" ] && [ "$ENABLE_MCP" = "true" ]; then
-    mkdir -p /root/.vibe
-    if [ ! -f "$CONFIG_FILE" ]; then
+mkdir -p /root/.vibe
+if [ ! -f "$CONFIG_FILE" ]; then
+    printf '' > "$CONFIG_FILE"
+fi
+if ! python3 -c "import tomllib; tomllib.load(open('$CONFIG_FILE','rb'))" 2>/dev/null; then
+    echo '[ERROR] ~/.vibe/config.toml is invalid TOML; attempting repair from backup'
+    if [ -f "$CONFIG_FILE.bak" ] && python3 -c "import tomllib; tomllib.load(open('$CONFIG_FILE.bak','rb'))" 2>/dev/null; then
+        cp "$CONFIG_FILE.bak" "$CONFIG_FILE"
+        echo '[INFO] Restored config.toml from the last known-good backup'
+    else
+        mv "$CONFIG_FILE" "$CONFIG_FILE.corrupt" 2>/dev/null || true
         printf '' > "$CONFIG_FILE"
+        echo '[WARN] No valid backup found; the corrupt file was moved to config.toml.corrupt and a fresh one was created'
     fi
+fi
+cp "$CONFIG_FILE" "$CONFIG_FILE.bak"
+if [ "$VIBE_OK" = "true" ] && [ "$ENABLE_MCP" = "true" ]; then
     HA_MCP_CONFIGURED=false
     if grep -q 'name = "homeassistant"' "$CONFIG_FILE" 2>/dev/null; then
         HA_MCP_CONFIGURED=true
@@ -68,6 +80,7 @@ command = "hass-mcp"
 EOF
         if python3 -c "import tomllib; tomllib.load(open('$CONFIG_FILE','rb'))" 2>/dev/null; then
             HA_MCP_CONFIGURED=true
+            cp "$CONFIG_FILE" "$CONFIG_FILE.bak"
             echo '[INFO] MCP configured with Home Assistant integration'
         else
             python3 - "$CONFIG_FILE" << 'PYEOF'
